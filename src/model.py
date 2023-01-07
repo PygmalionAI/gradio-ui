@@ -4,6 +4,12 @@ import typing as t
 import torch
 import transformers
 
+try:
+    import accelerate
+    USE_ACCELERATE = True
+except ImportError:
+    USE_ACCELERATE = False
+
 from huggingface_hub import hf_hub_download
 
 logger = logging.getLogger(__name__)
@@ -37,15 +43,15 @@ def build_model_and_tokenizer_for(
     logger.info(f"Loading the {model_name} model")
     # If loading 6B model in, we need to manually download files and then use the accelerate library.
     if model_name == "PygmalionAI/pygmalion-6b":
-        from accelerate import init_empty_weights, load_checkpoint_and_dispatch
+        assert USE_ACCELERATE, "Accelerate must be installed in order to use Pygmalion-6B!"
         index_file = _download_hf_files(model_name)
         config = transformers.AutoConfig.from_pretrained(model_name)
         # Manually add bad words
         config.bad_words_ids = bad_words_ids
         
-        with init_empty_weights():
+        with accelerate.init_empty_weights():
             model = transformers.AutoModelForCausalLM.from_config(config)
-        model = load_checkpoint_and_dispatch(
+        model = accelerate.load_checkpoint_and_dispatch(
             model, index_file, device_map="auto", no_split_module_classes=["GPTJBlock"])
         model.eval().half()
     else:
@@ -115,11 +121,11 @@ def _build_bad_words_list_for(_model_name: str) -> t.List[str]:
 def _download_hf_files(repo_name: str) -> str:
     '''
     Downloads model files manually in the case that accelerate's load_checkpoint_and_dispatch() needs to be called.
-    :param repo_name: The name of the HuggingFace respository to download from.
     
+    :param repo_name: The name of the HuggingFace respository to download from.
     :return: The filepath to the index.json file for loading weights
     '''
-    # NOTE (TG): Right now this is basically hardcoded for Pygmalion-6B.
+    # NOTE(TG): Right now this is basically hardcoded for Pygmalion-6B.
     # That model has 2 sharded model files, and only two. However, future models
     # may have more than 2 model files. The proper way to handle this would probably be
     # to download index.json first and then download every file found in that file's values.
