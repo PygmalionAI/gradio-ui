@@ -1,4 +1,5 @@
 import re
+import typing as t
 
 BAD_CHARS_FOR_REGEX_REGEX = re.compile(r"[-\/\\^$*+?.()|[\]{}]")
 
@@ -8,7 +9,7 @@ def _sanitize_string_for_use_in_a_regex(string: str) -> str:
     return BAD_CHARS_FOR_REGEX_REGEX.sub(r"\\\g<0>", string)
 
 
-def parse_messages_from_str(string: str, names: list[str]) -> list[str]:
+def parse_messages_from_str(string: str, names: t.List[str]) -> t.List[str]:
     '''
     Given a big string containing raw chat history, this function attempts to
     parse it out into a list where each item is an individual message.
@@ -40,6 +41,6 @@ def parse_messages_from_str(string: str, names: list[str]) -> list[str]:
     return messages
 
 
-def serialize_chat_history(history: list[str]) -> str:
+def serialize_chat_history(history: t.List[str]) -> str:
     '''Given a structured chat history object, collapses it down to a string.'''
     return "\n".join(history)
