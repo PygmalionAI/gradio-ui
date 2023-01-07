@@ -24,8 +24,8 @@ def main(model_name: str, server_port: int) -> None:
     else:
         model, tokenizer = build_model_and_tokenizer_for(model_name)
 
-        def inference_fn(history: list[str], user_input: str,
-                         generation_settings: dict[str, t.Any],
+        def inference_fn(history: t.List[str], user_input: str,
+                         generation_settings: t.Dict[str, t.Any],
                          *char_settings: t.Any) -> str:
             # Brittle. Comes from the order defined in gradio_ui.py.
             [

@@ -88,7 +88,7 @@ def run_raw_inference(model: transformers.AutoModelForCausalLM,
             "Couldn't find user message in the model's output. What?")
 
 
-def _build_bad_words_list_for(_model_name: str) -> list[str]:
+def _build_bad_words_list_for(_model_name: str) -> t.List[str]:
     '''Builds a list of bad words for the given model.'''
 
     # NOTE(11b): This was implemented as a function because each model size
