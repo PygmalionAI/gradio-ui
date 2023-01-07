@@ -4,6 +4,8 @@ import typing as t
 import torch
 import transformers
 
+from huggingface_hub import hf_hub_download
+
 logger = logging.getLogger(__name__)
 
 GENERATION_DEFAULTS = {
@@ -33,9 +35,23 @@ def build_model_and_tokenizer_for(
     ]
 
     logger.info(f"Loading the {model_name} model")
-    model = transformers.AutoModelForCausalLM.from_pretrained(
-        model_name, bad_words_ids=bad_words_ids)
-    model.eval().half().to("cuda")
+    # If loading 6B model in, we need to manually download files and then use the accelerate library.
+    if model_name == "PygmalionAI/pygmalion-6b":
+        from accelerate import init_empty_weights, load_checkpoint_and_dispatch
+        index_file = _download_hf_files(model_name)
+        config = transformers.AutoConfig.from_pretrained(model_name)
+        # Manually add bad words
+        config.bad_words_ids = bad_words_ids
+        
+        with init_empty_weights():
+            model = transformers.AutoModelForCausalLM.from_config(config)
+        model = load_checkpoint_and_dispatch(
+            model, index_file, device_map="auto", no_split_module_classes=["GPTJBlock"])
+        model.eval().half()
+    else:
+        model = transformers.AutoModelForCausalLM.from_pretrained(
+            model_name, bad_words_ids=bad_words_ids)
+        model.eval().half().to("cuda")
 
     logger.info("Model and tokenizer are ready")
     return model, tokenizer
@@ -95,7 +111,27 @@ def _build_bad_words_list_for(_model_name: str) -> t.List[str]:
     # seems to have it quirks at the moment, but this is a rushed implementation
     # so I'm not handling that, hence the dumb return here.
     return ["Persona:", "Scenario:", "<START>"]
-
+    
+def _download_hf_files(repo_name: str) -> str:
+    '''
+    Downloads model files manually in the case that accelerate's load_checkpoint_and_dispatch() needs to be called.
+    :param repo_name: The name of the HuggingFace respository to download from.
+    
+    :return: The filepath to the index.json file for loading weights
+    '''
+    # NOTE (TG): Right now this is basically hardcoded for Pygmalion-6B.
+    # That model has 2 sharded model files, and only two. However, future models
+    # may have more than 2 model files. The proper way to handle this would probably be
+    # to download index.json first and then download every file found in that file's values.
+    
+    # Download first part of model file
+    _ = hf_hub_download(repo_name, filename="pytorch_model-00001-of-00002.bin")
+    # Download second part of model file
+    _ = hf_hub_download(repo_name, filename="pytorch_model-00002-of-00002.bin")
+    # Download index file
+    index_filepath = hf_hub_download(repo_name, filename="pytorch_model.bin.index.json")
+    
+    return index_filepath
 
 class _SentinelTokenStoppingCriteria(transformers.StoppingCriteria):
 
