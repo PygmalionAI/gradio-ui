@@ -115,11 +115,11 @@ def _build_bad_words_list_for(_model_name: str) -> t.List[str]:
 def _download_hf_files(repo_name: str) -> str:
     '''
     Downloads model files manually in the case that accelerate's load_checkpoint_and_dispatch() needs to be called.
+
     :param repo_name: The name of the HuggingFace respository to download from.
-    
     :return: The filepath to the index.json file for loading weights
     '''
-    # NOTE (TG): Right now this is basically hardcoded for Pygmalion-6B.
+    # NOTE(TG): Right now this is basically hardcoded for Pygmalion-6B.
     # That model has 2 sharded model files, and only two. However, future models
     # may have more than 2 model files. The proper way to handle this would probably be
     # to download index.json first and then download every file found in that file's values.
