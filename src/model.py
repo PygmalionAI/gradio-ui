@@ -6,16 +6,6 @@ import transformers
 
 logger = logging.getLogger(__name__)
 
-GENERATION_DEFAULTS = {
-    "do_sample": True,
-    "max_new_tokens": 128,
-    "temperature": 0.5,
-    "top_p": 0.9,
-    "top_k": 0,
-    "typical_p": 1.0,
-    "repetition_penalty": 1.1,
-}
-
 
 def build_model_and_tokenizer_for(
     model_name: str
@@ -99,7 +89,8 @@ def _build_bad_words_list_for(_model_name: str) -> t.List[str]:
 
 class _SentinelTokenStoppingCriteria(transformers.StoppingCriteria):
 
-    def __init__(self, sentinel_token_ids: torch.LongTensor, starting_idx: int):
+    def __init__(self, sentinel_token_ids: torch.LongTensor,
+                 starting_idx: int):
         transformers.StoppingCriteria.__init__(self)
         self.sentinel_token_ids = sentinel_token_ids
         self.starting_idx = starting_idx

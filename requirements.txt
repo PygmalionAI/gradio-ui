@@ -1,4 +1,2 @@
-accelerate
 gradio
-safetensors
-transformers
+requests
