@@ -2,20 +2,30 @@ import logging
 
 import gradio as gr
 
-GENERATION_DEFAULTS = {
-    # "do_sample": True,
-    # "max_new_tokens": 128,
-    "temperature": 0.5,
-    "top_p": 0.9,
-    "top_k": 0,
-    "typical": 1.0,
-    # "repetition_penalty": 1.1,
-}
+
+def get_generation_defaults(for_kobold):
+    defaults = {
+        "do_sample": True,
+        "max_new_tokens": 196,
+        "temperature": 0.5,
+        "top_p": 0.9,
+        "top_k": 0,
+        "typical_p": 1.0,
+        "repetition_penalty": 1.05,
+    }
+
+    if for_kobold:
+        defaults.update({"max_context_length": 768})
+    else:
+        defaults.update({"penalty_alpha": 0.65})
+
+    return defaults
+
 
 logger = logging.getLogger(__name__)
 
 
-def build_gradio_ui_for(inference_fn):
+def build_gradio_ui_for(inference_fn, for_kobold):
     '''
     Builds a Gradio UI to interact with the model. Big thanks to TearGosling for
     the initial version that inspired this.
@@ -23,7 +33,8 @@ def build_gradio_ui_for(inference_fn):
     with gr.Blocks(title="Pygmalion", analytics_enabled=False) as interface:
         history_for_gradio = gr.State([])
         history_for_model = gr.State([])
-        generation_settings = gr.State(GENERATION_DEFAULTS)
+        generation_settings = gr.State(
+            get_generation_defaults(for_kobold=for_kobold))
 
         def _update_generation_settings(
             original_settings,
@@ -146,6 +157,7 @@ def build_gradio_ui_for(inference_fn):
             _build_generation_settings_ui(
                 state=generation_settings,
                 fn=_update_generation_settings,
+                for_kobold=for_kobold,
             )
 
     return interface
@@ -191,14 +203,15 @@ def _build_character_settings_ui():
     return char_name, user_name, char_persona, char_greeting, world_scenario, example_dialogue
 
 
-def _build_generation_settings_ui(state, fn):
+def _build_generation_settings_ui(state, fn, for_kobold):
+    generation_defaults = get_generation_defaults(for_kobold=for_kobold)
+
     with gr.Row():
         with gr.Column():
-            '''
             max_new_tokens = gr.Slider(
                 16,
                 512,
-                value=GENERATION_DEFAULTS["max_new_tokens"],
+                value=generation_defaults["max_new_tokens"],
                 step=4,
                 label="max_new_tokens",
             )
@@ -207,12 +220,11 @@ def _build_generation_settings_ui(state, fn):
                 inputs=[state, max_new_tokens],
                 outputs=state,
             )
-            '''
 
             temperature = gr.Slider(
                 0.1,
                 2,
-                value=GENERATION_DEFAULTS["temperature"],
+                value=generation_defaults["temperature"],
                 step=0.01,
                 label="temperature",
             )
@@ -225,7 +237,7 @@ def _build_generation_settings_ui(state, fn):
             top_p = gr.Slider(
                 0.0,
                 1.0,
-                value=GENERATION_DEFAULTS["top_p"],
+                value=generation_defaults["top_p"],
                 step=0.01,
                 label="top_p",
             )
@@ -236,24 +248,23 @@ def _build_generation_settings_ui(state, fn):
             )
 
         with gr.Column():
-            typical = gr.Slider(
+            typical_p = gr.Slider(
                 0.0,
                 1.0,
-                value=GENERATION_DEFAULTS["typical"],
+                value=generation_defaults["typical_p"],
                 step=0.01,
-                label="typical",
+                label="typical_p",
             )
-            typical.change(
-                lambda state, value: fn(state, "typical", value),
-                inputs=[state, typical],
+            typical_p.change(
+                lambda state, value: fn(state, "typical_p", value),
+                inputs=[state, typical_p],
                 outputs=state,
             )
 
-            '''
             repetition_penalty = gr.Slider(
                 1.0,
                 3.0,
-                value=GENERATION_DEFAULTS["repetition_penalty"],
+                value=generation_defaults["repetition_penalty"],
                 step=0.01,
                 label="repetition_penalty",
             )
@@ -262,12 +273,11 @@ def _build_generation_settings_ui(state, fn):
                 inputs=[state, repetition_penalty],
                 outputs=state,
             )
-            '''
 
             top_k = gr.Slider(
                 0,
                 100,
-                value=GENERATION_DEFAULTS["top_k"],
+                value=generation_defaults["top_k"],
                 step=1,
                 label="top_k",
             )
@@ -276,6 +286,20 @@ def _build_generation_settings_ui(state, fn):
                 inputs=[state, top_k],
                 outputs=state,
             )
+
+            if not for_kobold:
+                penalty_alpha = gr.Slider(
+                    0,
+                    1,
+                    value=generation_defaults["penalty_alpha"],
+                    step=0.05,
+                    label="penalty_alpha",
+                )
+                penalty_alpha.change(
+                    lambda state, value: fn(state, "penalty_alpha", value),
+                    inputs=[state, penalty_alpha],
+                    outputs=state,
+                )
 
     #
     # Some of these explanations are taken from Kobold:
@@ -292,6 +316,9 @@ def _build_generation_settings_ui(state, fn):
         - `temperature`: Randomness of sampling. High values can increase creativity but may make text less sensible. Lower values will make text more predictable but can become repetitious.
         - `top_p`: Used to discard unlikely text in the sampling process. Lower values will make text more predictable but can become repetitious. (Put this value on 1 to disable its effect)
         - `top_k`: Alternative sampling method, can be combined with top_p. The number of highest probability vocabulary tokens to keep for top-k-filtering. (Put this value on 0 to disable its effect)
-        - `typical`: Alternative sampling method described in the paper "Typical Decoding for Natural Language Generation" (10.48550/ARXIV.2202.00666). The paper suggests 0.2 as a good value for this setting. Set this setting to 1 to disable its effect.
+        - `typical_p`: Alternative sampling method described in the paper "Typical_p Decoding for Natural Language Generation" (10.48550/ARXIV.2202.00666). The paper suggests 0.2 as a good value for this setting. Set this setting to 1 to disable its effect.
         - `repetition_penalty`: Used to penalize words that were already generated or belong to the context (Going over 1.2 breaks 6B models. Set to 1.0 to disable).
+        - `penalty_alpha`: The alpha coefficient when using contrastive search.
+
+        Some settings might not show up depending on which inference backend is being used.
         """)

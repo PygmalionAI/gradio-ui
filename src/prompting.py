@@ -11,7 +11,6 @@ def build_prompt_for(
     user_message: str,
     char_name: str,
     char_persona: t.Optional[str] = None,
-    char_greeting: t.Optional[str] = None,
     example_dialogue: t.Optional[str] = None,
     world_scenario: t.Optional[str] = None,
 ) -> str:

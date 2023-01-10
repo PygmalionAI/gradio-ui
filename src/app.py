@@ -3,15 +3,14 @@ import argparse
 import logging
 import typing as t
 
-logging.basicConfig(level=logging.DEBUG)
-
 from gradio_ui import build_gradio_ui_for
-from koboldai_client import run_raw_inference_on_kai
+from koboldai_client import run_raw_inference_on_kai, wait_for_kai_server
 from parsing import parse_messages_from_str
 from prompting import build_prompt_for
+from utils import clear_stdout
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 # For UI debugging purposes.
 DONT_USE_MODEL = False
@@ -56,7 +55,6 @@ def main(server_port: int,
                                   user_message=user_input,
                                   char_name=char_name,
                                   char_persona=char_persona,
-                                  char_greeting=char_greeting,
                                   example_dialogue=example_dialogue,
                                   world_scenario=world_scenario)
 
@@ -66,7 +64,7 @@ def main(server_port: int,
         elif koboldai_url:
             model_output = f"{char_name}:"
             model_output += run_raw_inference_on_kai(koboldai_url, prompt,
-                                                    **generation_settings)
+                                                     **generation_settings)
         else:
             raise Exception(
                 "Not using local inference, but no Kobold instance URL was"
@@ -79,7 +77,7 @@ def main(server_port: int,
 
         return bot_message
 
-    ui = build_gradio_ui_for(inference_fn)
+    ui = build_gradio_ui_for(inference_fn, for_kobold=koboldai_url is not None)
     ui.launch(server_port=server_port, share=share_gradio_link)
 
 
@@ -89,7 +87,8 @@ def _parse_args_from_argv() -> argparse.Namespace:
     parser.add_argument(
         "-m",
         "--model-name",
-        help="HuggingFace Transformers model name, if not using a KoboldAI instance as an inference server.",
+        help=
+        "HuggingFace Transformers model name, if not using a KoboldAI instance as an inference server.",
     )
     parser.add_argument(
         "-p",
@@ -115,6 +114,17 @@ def _parse_args_from_argv() -> argparse.Namespace:
 
 if __name__ == "__main__":
     args = _parse_args_from_argv()
+
+    if args.koboldai_url:
+        # I have no idea how long a safe wait time is, but we'd rather wait for
+        # too long rather than just cut the user off _right_ when the setup is
+        # about to finish, so let's pick something absurd here.
+        wait_for_kai_server(args.koboldai_url, max_wait_time_seconds=60 * 30)
+
+        # Clear out any Kobold logs so the user can clearly see the Gradio link
+        # that's about to show up afterwards.
+        clear_stdout()
+
     main(model_name=args.model_name,
          server_port=args.port,
          koboldai_url=args.koboldai_url,
