@@ -2,7 +2,15 @@ import logging
 
 import gradio as gr
 
-from model import GENERATION_DEFAULTS
+GENERATION_DEFAULTS = {
+    # "do_sample": True,
+    # "max_new_tokens": 128,
+    "temperature": 0.5,
+    "top_p": 0.9,
+    "top_k": 0,
+    "typical": 1.0,
+    # "repetition_penalty": 1.1,
+}
 
 logger = logging.getLogger(__name__)
 
@@ -186,6 +194,7 @@ def _build_character_settings_ui():
 def _build_generation_settings_ui(state, fn):
     with gr.Row():
         with gr.Column():
+            '''
             max_new_tokens = gr.Slider(
                 16,
                 512,
@@ -198,6 +207,7 @@ def _build_generation_settings_ui(state, fn):
                 inputs=[state, max_new_tokens],
                 outputs=state,
             )
+            '''
 
             temperature = gr.Slider(
                 0.1,
@@ -226,19 +236,20 @@ def _build_generation_settings_ui(state, fn):
             )
 
         with gr.Column():
-            typical_p = gr.Slider(
+            typical = gr.Slider(
                 0.0,
                 1.0,
-                value=GENERATION_DEFAULTS["typical_p"],
+                value=GENERATION_DEFAULTS["typical"],
                 step=0.01,
-                label="typical_p",
+                label="typical",
             )
-            typical_p.change(
-                lambda state, value: fn(state, "typical_p", value),
-                inputs=[state, typical_p],
+            typical.change(
+                lambda state, value: fn(state, "typical", value),
+                inputs=[state, typical],
                 outputs=state,
             )
 
+            '''
             repetition_penalty = gr.Slider(
                 1.0,
                 3.0,
@@ -251,6 +262,7 @@ def _build_generation_settings_ui(state, fn):
                 inputs=[state, repetition_penalty],
                 outputs=state,
             )
+            '''
 
             top_k = gr.Slider(
                 0,
@@ -280,6 +292,6 @@ def _build_generation_settings_ui(state, fn):
         - `temperature`: Randomness of sampling. High values can increase creativity but may make text less sensible. Lower values will make text more predictable but can become repetitious.
         - `top_p`: Used to discard unlikely text in the sampling process. Lower values will make text more predictable but can become repetitious. (Put this value on 1 to disable its effect)
         - `top_k`: Alternative sampling method, can be combined with top_p. The number of highest probability vocabulary tokens to keep for top-k-filtering. (Put this value on 0 to disable its effect)
-        - `typical_p`: Alternative sampling method described in the paper "Typical Decoding for Natural Language Generation" (10.48550/ARXIV.2202.00666). The paper suggests 0.2 as a good value for this setting. Set this setting to 1 to disable its effect.
+        - `typical`: Alternative sampling method described in the paper "Typical Decoding for Natural Language Generation" (10.48550/ARXIV.2202.00666). The paper suggests 0.2 as a good value for this setting. Set this setting to 1 to disable its effect.
         - `repetition_penalty`: Used to penalize words that were already generated or belong to the context (Going over 1.2 breaks 6B models. Set to 1.0 to disable).
         """)
