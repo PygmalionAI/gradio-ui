@@ -46,7 +46,7 @@ def build_gradio_ui_for(inference_fn, for_kobold):
             returns a new dictionary.
             '''
             updated_settings = {**original_settings, param_name: new_value}
-            logging.info("Generation settings updated to: `%s`",
+            logging.debug("Generation settings updated to: `%s`",
                          updated_settings)
             return updated_settings
 

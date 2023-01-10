@@ -90,7 +90,7 @@ def run_raw_inference_on_kai(
             return generated_text
 
         # Hit the configured generation limit.
-        if len(generated_text) >= max_new_tokens:
+        if len(generated_text.split()) >= max_new_tokens:
             return generated_text
 
         # Model still hasn't finished what it had to say. Append its output to
