@@ -47,6 +47,11 @@ def run_raw_inference_on_kai(
     payload = {
         "prompt": prompt,
 
+        # The config.json for our models enables chat mode by default, which
+        # we don't want yet since only the dev fork can handle our model
+        # properly at the moment, and we're bundling the stable version here.
+        "chatmode": False,
+
         # Incredibly low max len for reasons explained in the "while True" loop
         # below.
         "max_length": 32,
