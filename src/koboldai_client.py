@@ -43,6 +43,7 @@ def run_raw_inference_on_kai(
     repetition_penalty: float,
     **kwargs,
 ) -> str:
+    chunk_size = 32
     endpoint = f"{koboldai_url}/api/v1/generate"
     payload = {
         "prompt": prompt,
@@ -54,7 +55,7 @@ def run_raw_inference_on_kai(
 
         # Incredibly low max len for reasons explained in the "while True" loop
         # below.
-        "max_length": 32,
+        "max_length": chunk_size,
 
         # Take care of parameters which are named differently between Kobold and
         # HuggingFace.
@@ -78,7 +79,9 @@ def run_raw_inference_on_kai(
     # mode can't handle multi-line responses. To work around both of those, we
     # use the regular adventure mode generation but keep asking for more tokens
     # until the model starts trying to talk as the user, then we stop.
-    while True:
+    requests_made = 0
+    maximum_requests = min(max_new_tokens / chunk_size, 1) 
+    while requests_made < maximum_requests:
         response = requests.post(endpoint, json=payload)
         if not response.ok:
             error_message = response.text
@@ -88,6 +91,7 @@ def run_raw_inference_on_kai(
 
         inference_result = response.json()["results"][0]["text"]
         generated_text += inference_result
+        requests_made += 1
 
         # Model started to talk as us. Stop generating and return results, the
         # rest of the code will take care of trimming it properly.
@@ -103,3 +107,6 @@ def run_raw_inference_on_kai(
         logger.debug("Got another %s tokens, but still not done: `%s`",
                      payload["max_length"], generated_text)
         payload["prompt"] += inference_result
+
+    # Gave up after max attempts, just return what we already got.
+    return generated_text
