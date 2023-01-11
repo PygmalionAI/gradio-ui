@@ -1,5 +1,7 @@
 import logging
 
+import json
+
 import gradio as gr
 
 
@@ -163,7 +165,16 @@ def build_gradio_ui_for(inference_fn, for_kobold):
     return interface
 
 
-def _build_character_settings_ui():
+def _build_character_settings_ui():    
+    def char_file_upload(file_obj):
+        file_data = json.loads(file_obj.decode('utf-8'))
+        return file_data["char_name"], file_data["char_persona"], file_data["char_greeting"], file_data["world_scenario"], file_data["example_dialogue"]
+        
+    def char_file_create(char_name, char_persona, char_greeting, world_scenario, example_dialogue):
+        with open(char_name + ".json", "w") as f:
+            f.write(json.dumps({"char_name": char_name, "char_persona": char_persona, "char_greeting": char_greeting, "world_scenario": world_scenario, "example_dialogue": example_dialogue}))
+        return char_name + ".json"
+
     with gr.Column():
         with gr.Row():
             char_name = gr.Textbox(
@@ -199,6 +210,22 @@ def _build_character_settings_ui():
             "Optionally, write in an example chat here. This is useful for showing how the character should behave, for example.",
             lines=4,
         )
+
+        with gr.Row():
+            with gr.Column():
+                charfile = gr.File(type="bytes", file_types=[".json"])
+                charfile.upload(fn=char_file_upload, inputs=[charfile], outputs=[char_name, char_persona, char_greeting, world_scenario, example_dialogue])
+
+                save_char_btn = gr.Button(value="Generate Character File")
+                save_char_btn.click(char_file_create, inputs=[char_name, char_persona, char_greeting, world_scenario, example_dialogue], outputs=[charfile])
+            with gr.Column():
+                gr.Markdown("""
+                    ### To save a character
+                    Click "Generate Character File". The file will appear above the button and you can click to download it.
+
+                    ### To upload a character
+                    Drag a valid .json file onto the upload box, or click the box to browse.
+                """)
 
     return char_name, user_name, char_persona, char_greeting, world_scenario, example_dialogue
 
