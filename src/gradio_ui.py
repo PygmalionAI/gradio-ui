@@ -213,7 +213,7 @@ def _build_character_settings_ui():
 
         with gr.Row():
             with gr.Column():
-                charfile = gr.File(type="bytes", file_types=[".json"])
+                charfile = gr.File(type="binary", file_types=[".json"])
                 charfile.upload(fn=char_file_upload, inputs=[charfile], outputs=[char_name, char_persona, char_greeting, world_scenario, example_dialogue])
 
                 save_char_btn = gr.Button(value="Generate Character File")
