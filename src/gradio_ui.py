@@ -1,6 +1,6 @@
-import logging
-
+import itertools
 import json
+import logging
 
 import gradio as gr
 
@@ -100,6 +100,40 @@ def build_gradio_ui_for(inference_fn, for_kobold):
         def _undo_last_exchange(model_history, gradio_history):
             '''Undoes the last exchange (message pair).'''
             return model_history[:-2], gradio_history[:-1], gradio_history[:-1]
+            
+        def _save_chat_history(gradio_history, *char_setting_states):
+            '''Saves the current chat history to a .json file.'''
+            char_name = char_setting_states[0]
+            with open(f"{char_name}_conversation.json", "w") as f:
+                f.write(json.dumps({"chat": gradio_history}))
+            return f"{char_name}_conversation.json"
+            
+                
+        def _load_chat_history(file_obj, *char_setting_states):
+            '''Loads up a chat history from a .json file.'''
+            file_data = json.loads(file_obj.decode('utf-8'))
+            gradio_history = file_data["chat"]
+            char_name = char_setting_states[0]
+            
+            # If the chat is more than 4 turns we grab only the last 4 for the model history
+            model_history = gradio_history[-4:] if len(gradio_history) >= 4 else gradio_history
+            # Format the gradio history into a new model history
+            new_model_history = []
+            for line in itertools.chain.from_iterable(model_history):
+                # Chop off "\n" from the end of the line
+                formatted_line = line[:-1]
+                # Replace <em> with asterisks
+                formatted_line = formatted_line.replace("<em>", "*").replace("</em>", "*")
+                # Remove <p> and <strong>
+                formatted_line = formatted_line.replace("<p>", "").replace("</p>", "")
+                formatted_line = formatted_line.replace("<strong>", "").replace("</strong>", "")
+                # If there's no indicator of the speaker, it's (You) who's speaking
+                if formatted_line.split(":")[0] != char_name:
+                    formatted_line = f"You: {formatted_line}"
+                    
+                new_model_history.append(formatted_line)
+           
+            return new_model_history, gradio_history, gradio_history
 
         with gr.Tab("Character Settings"):
             char_setting_states = _build_character_settings_ui()
@@ -154,6 +188,28 @@ def build_gradio_ui_for(inference_fn, for_kobold):
                     inputs=[history_for_model, history_for_gradio],
                     outputs=[history_for_model, history_for_gradio, chatbot],
                 )
+                
+            with gr.Row():
+                with gr.Column():
+                    chatfile = gr.File(type="binary", file_types=[".json"], interactive=True)
+                    chatfile.upload(
+                        fn=_load_chat_history,
+                        inputs=[chatfile, *char_setting_states],
+                        outputs=[history_for_model, history_for_gradio, chatbot]
+                    )
+
+                    save_char_btn = gr.Button(value="Save Conversation History")
+                    save_char_btn.click(_save_chat_history, inputs=[history_for_gradio, *char_setting_states], outputs=[chatfile])
+                with gr.Column():
+                    gr.Markdown("""
+                        ### To save a chat
+                        Click "Save Conversation History". The file will appear above the button and you can click to download it.
+
+                        ### To load a chat
+                        Drag a valid .json file onto the upload box, or click the box to browse.
+                    """)
+
+                
 
         with gr.Tab("Generation Settings"):
             _build_generation_settings_ui(
