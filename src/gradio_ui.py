@@ -213,6 +213,8 @@ def build_gradio_ui_for(inference_fn, for_kobold):
 
                         ### To load a chat
                         Drag a valid .json file onto the upload box, or click the box to browse.
+                        
+                        **Remember to fill out/load up your character definitions before resuming a chat!**
                     """)
 
                 
