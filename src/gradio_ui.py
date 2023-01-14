@@ -1,4 +1,3 @@
-import itertools
 import json
 import logging
 
@@ -101,45 +100,38 @@ def build_gradio_ui_for(inference_fn, for_kobold):
             '''Undoes the last exchange (message pair).'''
             return model_history[:-2], gradio_history[:-1], gradio_history[:-1]
             
-        def _save_chat_history(gradio_history, *char_setting_states):
+        def _save_chat_history(model_history, *char_setting_states):
             '''Saves the current chat history to a .json file.'''
             char_name = char_setting_states[0]
             with open(f"{char_name}_conversation.json", "w") as f:
-                f.write(json.dumps({"chat": gradio_history}))
+                f.write(json.dumps({"chat": model_history}))
             return f"{char_name}_conversation.json"
             
                 
-        def _load_chat_history(file_obj, *char_setting_states):
+        def _load_chat_history(file_obj, char_name):
             '''Loads up a chat history from a .json file.'''
-            file_data = json.loads(file_obj.decode('utf-8'))
-            gradio_history = file_data["chat"]
-            char_name = char_setting_states[0]
-            
-            # If the chat is more than 4 turns we grab only the last 4 for the model history
-            model_history = gradio_history[-4:] if len(gradio_history) >= 4 else gradio_history
-            # Format the gradio history into a new model history
-            new_model_history = []
-            for line in itertools.chain.from_iterable(model_history):
-                # Chop off "\n" from the end of the line
-                formatted_line = line[:-1]
-                # Replace <em> with asterisks
-                formatted_line = formatted_line.replace("<em>", "*").replace("</em>", "*")
-                # Remove <p> and <strong>
-                formatted_line = formatted_line.replace("<p>", "").replace("</p>", "")
-                formatted_line = formatted_line.replace("<strong>", "").replace("</strong>", "")
+            # https://stackoverflow.com/questions/5389507/iterating-over-every-two-elements-in-a-list
+            def pairwise(iterable):
+                # "s -> (s0, s1), (s2, s3), (s4, s5), ..."
+                a = iter(iterable)
+                return zip(a, a)
                 
-                # If there's no indicator of the speaker, it's (You) who's speaking
-                speaker_prefix = formatted_line.split(":")[0]
-                if speaker_prefix != char_name:
-                    formatted_line = f"You: {formatted_line}"
-                # Account for the scenario where the user loads in the conversation first
-                # before loading in the character data
-                elif char_name == "" and speaker_prefix != "":
-                    char_name = speaker_prefix
-                    
-                new_model_history.append(formatted_line)
-           
-            return new_model_history, gradio_history, gradio_history
+            file_data = json.loads(file_obj.decode('utf-8'))
+            model_history = file_data["chat"]
+            # Construct a new gradio history
+            new_gradio_history = []
+            for turn in pairwise(model_history):
+                # Handle the situation where convo history may be loaded before character defs
+                if char_name == "":
+                    # Grab char name from the model history
+                    char_name = turn[1].split(":")[0]
+                # Format the user and bot utterances
+                user_turn = turn[0].replace("You :", "")
+                bot_turn = turn[1].replace(f"{char_name}:", f"**{char_name}**:")
+                
+                new_gradio_history.append((user_turn, bot_turn))
+                
+            return model_history, new_gradio_history, new_gradio_history
 
         with gr.Tab("Character Settings"):
             char_setting_states = _build_character_settings_ui()
@@ -200,7 +192,7 @@ def build_gradio_ui_for(inference_fn, for_kobold):
                     chatfile = gr.File(type="binary", file_types=[".json"], interactive=True)
                     chatfile.upload(
                         fn=_load_chat_history,
-                        inputs=[chatfile, *char_setting_states],
+                        inputs=[chatfile, char_setting_states[0]],
                         outputs=[history_for_model, history_for_gradio, chatbot]
                     )
 
