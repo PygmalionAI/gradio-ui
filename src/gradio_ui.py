@@ -1,6 +1,5 @@
-import logging
-
 import json
+import logging
 
 import gradio as gr
 
@@ -100,6 +99,40 @@ def build_gradio_ui_for(inference_fn, for_kobold):
         def _undo_last_exchange(model_history, gradio_history):
             '''Undoes the last exchange (message pair).'''
             return model_history[:-2], gradio_history[:-1], gradio_history[:-1]
+            
+        def _save_chat_history(model_history, *char_setting_states):
+            '''Saves the current chat history to a .json file.'''
+            char_name = char_setting_states[0]
+            with open(f"{char_name}_conversation.json", "w") as f:
+                f.write(json.dumps({"chat": model_history}))
+            return f"{char_name}_conversation.json"
+            
+                
+        def _load_chat_history(file_obj, char_name):
+            '''Loads up a chat history from a .json file.'''
+            # https://stackoverflow.com/questions/5389507/iterating-over-every-two-elements-in-a-list
+            def pairwise(iterable):
+                # "s -> (s0, s1), (s2, s3), (s4, s5), ..."
+                a = iter(iterable)
+                return zip(a, a)
+                
+            file_data = json.loads(file_obj.decode('utf-8'))
+            model_history = file_data["chat"]
+            # Construct a new gradio history
+            new_gradio_history = []
+            for human_turn, bot_turn in pairwise(model_history):
+                # Handle the situation where convo history may be loaded before character defs
+                if char_name == "":
+                    # Grab char name from the model history
+                    char_name = bot_turn.split(":")[0]
+                # Format the user and bot utterances
+                #pdb.set_trace()
+                user_turn = human_turn.replace("You: ", "")
+                bot_turn = bot_turn.replace(f"{char_name}:", f"**{char_name}:**")
+                
+                new_gradio_history.append((user_turn, bot_turn))
+                
+            return model_history, new_gradio_history, new_gradio_history
 
         with gr.Tab("Character Settings"):
             char_setting_states = _build_character_settings_ui()
@@ -154,6 +187,30 @@ def build_gradio_ui_for(inference_fn, for_kobold):
                     inputs=[history_for_model, history_for_gradio],
                     outputs=[history_for_model, history_for_gradio, chatbot],
                 )
+                
+            with gr.Row():
+                with gr.Column():
+                    chatfile = gr.File(type="binary", file_types=[".json"], interactive=True)
+                    chatfile.upload(
+                        fn=_load_chat_history,
+                        inputs=[chatfile, char_setting_states[0]],
+                        outputs=[history_for_model, history_for_gradio, chatbot]
+                    )
+
+                    save_char_btn = gr.Button(value="Save Conversation History")
+                    save_char_btn.click(_save_chat_history, inputs=[history_for_model, *char_setting_states], outputs=[chatfile])
+                with gr.Column():
+                    gr.Markdown("""
+                        ### To save a chat
+                        Click "Save Conversation History". The file will appear above the button and you can click to download it.
+
+                        ### To load a chat
+                        Drag a valid .json file onto the upload box, or click the box to browse.
+                        
+                        **Remember to fill out/load up your character definitions before resuming a chat!**
+                    """)
+
+                
 
         with gr.Tab("Generation Settings"):
             _build_generation_settings_ui(
