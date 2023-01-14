@@ -126,8 +126,9 @@ def build_gradio_ui_for(inference_fn, for_kobold):
                     # Grab char name from the model history
                     char_name = bot_turn.split(":")[0]
                 # Format the user and bot utterances
-                user_turn = human_turn.replace("You :", "")
-                bot_turn = bot_turn.replace(f"{char_name}:", f"**{char_name}**:")
+                #pdb.set_trace()
+                user_turn = human_turn.replace("You: ", "")
+                bot_turn = bot_turn.replace(f"{char_name}:", f"**{char_name}:**")
                 
                 new_gradio_history.append((user_turn, bot_turn))
                 
