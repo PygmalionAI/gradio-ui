@@ -120,14 +120,14 @@ def build_gradio_ui_for(inference_fn, for_kobold):
             model_history = file_data["chat"]
             # Construct a new gradio history
             new_gradio_history = []
-            for turn in pairwise(model_history):
+            for human_turn, bot_turn in pairwise(model_history):
                 # Handle the situation where convo history may be loaded before character defs
                 if char_name == "":
                     # Grab char name from the model history
-                    char_name = turn[1].split(":")[0]
+                    char_name = bot_turn.split(":")[0]
                 # Format the user and bot utterances
-                user_turn = turn[0].replace("You :", "")
-                bot_turn = turn[1].replace(f"{char_name}:", f"**{char_name}**:")
+                user_turn = human_turn.replace("You :", "")
+                bot_turn = bot_turn.replace(f"{char_name}:", f"**{char_name}**:")
                 
                 new_gradio_history.append((user_turn, bot_turn))
                 
@@ -197,7 +197,7 @@ def build_gradio_ui_for(inference_fn, for_kobold):
                     )
 
                     save_char_btn = gr.Button(value="Save Conversation History")
-                    save_char_btn.click(_save_chat_history, inputs=[history_for_gradio, *char_setting_states], outputs=[chatfile])
+                    save_char_btn.click(_save_chat_history, inputs=[history_for_model, *char_setting_states], outputs=[chatfile])
                 with gr.Column():
                     gr.Markdown("""
                         ### To save a chat
