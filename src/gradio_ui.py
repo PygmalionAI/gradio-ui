@@ -127,9 +127,15 @@ def build_gradio_ui_for(inference_fn, for_kobold):
                 # Remove <p> and <strong>
                 formatted_line = formatted_line.replace("<p>", "").replace("</p>", "")
                 formatted_line = formatted_line.replace("<strong>", "").replace("</strong>", "")
+                
                 # If there's no indicator of the speaker, it's (You) who's speaking
-                if formatted_line.split(":")[0] != char_name:
+                speaker_prefix = formatted_line.split(":")[0]
+                if speaker_prefix != char_name:
                     formatted_line = f"You: {formatted_line}"
+                # Account for the scenario where the user loads in the conversation first
+                # before loading in the character data
+                elif char_name == "" and speaker_prefix != "":
+                    char_name = speaker_prefix
                     
                 new_model_history.append(formatted_line)
            
