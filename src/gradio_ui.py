@@ -8,17 +8,17 @@ def get_generation_defaults(for_kobold):
     defaults = {
         "do_sample": True,
         "max_new_tokens": 196,
-        "temperature": 0.5,
+        "temperature": 1.0,
         "top_p": 0.9,
-        "top_k": 0,
+        "top_k": 40,
         "typical_p": 1.0,
-        "repetition_penalty": 1.05,
+        "repetition_penalty": 1.01,
     }
 
     if for_kobold:
         defaults.update({"max_context_length": 768})
     else:
-        defaults.update({"penalty_alpha": 0.65})
+        defaults.update({"penalty_alpha": 0.6})
 
     return defaults
 
