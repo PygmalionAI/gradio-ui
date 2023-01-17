@@ -8,11 +8,11 @@ def get_generation_defaults(for_kobold):
     defaults = {
         "do_sample": True,
         "max_new_tokens": 196,
-        "temperature": 1.0,
+        "temperature": 0.5,
         "top_p": 0.9,
-        "top_k": 40,
+        "top_k": 0,
         "typical_p": 1.0,
-        "repetition_penalty": 1.01,
+        "repetition_penalty": 1.05,
     }
 
     if for_kobold:
