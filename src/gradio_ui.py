@@ -65,6 +65,10 @@ def build_gradio_ui_for(inference_fn, for_kobold):
             char_name = char_setting_states[0]
             user_name = char_setting_states[1]
 
+            # If user input is blank, format it as if user was silent
+            if user_input is None or user_input.strip() == "":
+                user_input = "..."
+
             inference_result = inference_fn(model_history, user_input,
                                             generation_settings,
                                             *char_setting_states)
