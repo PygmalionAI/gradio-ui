@@ -107,15 +107,21 @@ def build_gradio_ui_for(inference_fn, for_kobold):
                 f.write(json.dumps({"chat": model_history}))
             return f"{char_name}_conversation.json"
             
-                
-        def _load_chat_history(file_obj, char_name):
+        def _load_chat_history(file_obj, *char_setting_states):
             '''Loads up a chat history from a .json file.'''
+            # #############################################################################################
+            # TODO(TG): Automatically detect and convert any CAI dump files loaded in to Pygmalion format #
+            # #############################################################################################
+
             # https://stackoverflow.com/questions/5389507/iterating-over-every-two-elements-in-a-list
             def pairwise(iterable):
                 # "s -> (s0, s1), (s2, s3), (s4, s5), ..."
                 a = iter(iterable)
                 return zip(a, a)
-                
+
+            char_name = char_setting_states[0]
+            user_name = char_setting_states[1]
+            
             file_data = json.loads(file_obj.decode('utf-8'))
             model_history = file_data["chat"]
             # Construct a new gradio history
@@ -126,9 +132,12 @@ def build_gradio_ui_for(inference_fn, for_kobold):
                     # Grab char name from the model history
                     char_name = bot_turn.split(":")[0]
                 # Format the user and bot utterances
-                #pdb.set_trace()
                 user_turn = human_turn.replace("You: ", "")
                 bot_turn = bot_turn.replace(f"{char_name}:", f"**{char_name}:**")
+
+                # Replace [NAME_IN_MESSAGE_REDACTED] with the user's name
+                user_turn = user_turn.replace("[NAME_IN_MESSAGE_REDACTED]", user_name)
+                bot_turn = bot_turn.replace("[NAME_IN_MESSAGE_REDACTED]", user_name)
                 
                 new_gradio_history.append((user_turn, bot_turn))
                 
@@ -193,7 +202,7 @@ def build_gradio_ui_for(inference_fn, for_kobold):
                     chatfile = gr.File(type="binary", file_types=[".json"], interactive=True)
                     chatfile.upload(
                         fn=_load_chat_history,
-                        inputs=[chatfile, char_setting_states[0]],
+                        inputs=[chatfile, *char_setting_states],
                         outputs=[history_for_model, history_for_gradio, chatbot]
                     )
 
