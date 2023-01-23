@@ -139,7 +139,12 @@ def build_gradio_ui_for(inference_fn, for_kobold):
                 user_turn = human_turn.replace("You: ", "")
                 bot_turn = bot_turn.replace(f"{char_name}:", f"**{char_name}:**")
 
-                # Replace [NAME_IN_MESSAGE_REDACTED] with the user's name
+                # Somebody released a script on /g/ which tries to convert CAI dump logs
+                # to Pygmalion character settings and chats. The anonymization of the dumps, however, means that
+                # [NAME_IN_MESSAGE_REDACTED] is left in the conversational history. We obviously wouldn't want this
+                # This therefore accomodates users of that script, so that [NAME_IN_MESSAGE_REDACTED] doesn't have
+                # to be manually edited in the conversation JSON.
+                # The model shouldn't generate [NAME_IN_MESSAGE_REDACTED] by itself.
                 user_turn = user_turn.replace("[NAME_IN_MESSAGE_REDACTED]", user_name)
                 bot_turn = bot_turn.replace("[NAME_IN_MESSAGE_REDACTED]", user_name)
                 
