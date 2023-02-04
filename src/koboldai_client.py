@@ -73,7 +73,11 @@ def run_raw_inference_on_kai(
     # mode can't handle multi-line responses. To work around both of those, we
     # use the regular adventure mode generation but keep asking for more tokens
     # until the model starts trying to talk as the user, then we stop.
-    while True:
+    attempts = 0
+    max_extra_attempts = 4
+    while attempts < (payload["max_length"] /
+                      max_new_tokens) + max_extra_attempts:
+        attempts += 1
         response = requests.post(endpoint, json=payload)
         if not response.ok:
             error_message = response.text
@@ -87,10 +91,20 @@ def run_raw_inference_on_kai(
         # Model started to talk as us. Stop generating and return results, the
         # rest of the code will take care of trimming it properly.
         if "\nYou:" in generated_text:
+            logger.debug("Hit `\nYou:`: `%s`", generated_text)
             return generated_text
+
+        # For SFT: hit an EOS token. Trim and return.
+        if generated_text.endswith("<|endoftext|>"):
+            logger.debug("Got EOS token: `%s`", generated_text)
+
+            # We add a fake generated "\nYou:" here so the trimming code doesn't
+            # need to handle SFT and UFT models differently.
+            return generated_text.replace("<|endoftext|>", "\nYou:")
 
         # Hit the configured generation limit.
         if len(generated_text.split()) >= max_new_tokens:
+            logger.debug("Hit max length: `%s`", generated_text)
             return generated_text
 
         # Model still hasn't finished what it had to say. Append its output to
@@ -98,3 +112,6 @@ def run_raw_inference_on_kai(
         logger.debug("Got another %s tokens, but still not done: `%s`",
                      payload["max_length"], generated_text)
         payload["prompt"] += inference_result
+
+    logger.debug("Exhausted generation attempts: `%s`", generated_text)
+    return generated_text
