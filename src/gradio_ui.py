@@ -252,7 +252,8 @@ def _char_file_upload(file_obj, history_model, history_gradio):
     file_data = json.loads(file_obj.decode('utf-8'))
     char_name = file_data["char_name"]
     greeting = file_data["char_greeting"]
-    if not history_model and char_name and greeting:
+    empty_history = not history_model or (len(history_model) <= 2 and history_model[0] == '')
+    if empty_history and char_name and greeting:
         # if chat history is empty so far, and there is a character greeting, add character greeting to the chat
         s = f'{char_name}: {greeting}'
         t = f'**{char_name}**: {greeting}'
