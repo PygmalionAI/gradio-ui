@@ -152,13 +152,21 @@ def build_gradio_ui_for(inference_fn, for_kobold):
                 
             return model_history, new_gradio_history, new_gradio_history
 
-        with gr.Tab("Character Settings"):
-            char_setting_states = _build_character_settings_ui()
+        with gr.Tab("Character Settings") as settings_tab:
+            charfile, char_setting_states = _build_character_settings_ui()
 
         with gr.Tab("Chat Window"):
             chatbot = gr.Chatbot(
                 label="Your conversation will show up here").style(
                     color_map=("#326efd", "#212528"))
+
+            char_name, _user_name, char_persona, char_greeting, world_scenario, example_dialogue = char_setting_states
+            charfile.upload(
+                fn=_char_file_upload,
+                inputs=[charfile, history_for_model, history_for_gradio],
+                outputs=[history_for_model, history_for_gradio, chatbot, char_name, char_persona, char_greeting, world_scenario, example_dialogue]
+            )
+
             message = gr.Textbox(
                 label="Your message (hit Enter to send)",
                 placeholder="Write a message...",
@@ -240,11 +248,21 @@ def build_gradio_ui_for(inference_fn, for_kobold):
     return interface
 
 
-def _build_character_settings_ui():    
-    def char_file_upload(file_obj):
-        file_data = json.loads(file_obj.decode('utf-8'))
-        return file_data["char_name"], file_data["char_persona"], file_data["char_greeting"], file_data["world_scenario"], file_data["example_dialogue"]
-        
+def _char_file_upload(file_obj, history_model, history_gradio):
+    file_data = json.loads(file_obj.decode('utf-8'))
+    char_name = file_data["char_name"]
+    greeting = file_data["char_greeting"]
+    empty_history = not history_model or (len(history_model) <= 2 and history_model[0] == '')
+    if empty_history and char_name and greeting:
+        # if chat history is empty so far, and there is a character greeting, add character greeting to the chat
+        s = f'{char_name}: {greeting}'
+        t = f'**{char_name}**: {greeting}'
+        history_model = ['', s]
+        history_gradio = [('', t)]
+    return history_model, history_gradio, history_gradio, char_name, file_data["char_persona"], greeting, file_data["world_scenario"], file_data["example_dialogue"]
+
+def _build_character_settings_ui():
+
     def char_file_create(char_name, char_persona, char_greeting, world_scenario, example_dialogue):
         with open(char_name + ".json", "w") as f:
             f.write(json.dumps({"char_name": char_name, "char_persona": char_persona, "char_greeting": char_greeting, "world_scenario": world_scenario, "example_dialogue": example_dialogue}))
@@ -289,7 +307,6 @@ def _build_character_settings_ui():
         with gr.Row():
             with gr.Column():
                 charfile = gr.File(type="binary", file_types=[".json"])
-                charfile.upload(fn=char_file_upload, inputs=[charfile], outputs=[char_name, char_persona, char_greeting, world_scenario, example_dialogue])
 
                 save_char_btn = gr.Button(value="Generate Character File")
                 save_char_btn.click(char_file_create, inputs=[char_name, char_persona, char_greeting, world_scenario, example_dialogue], outputs=[charfile])
@@ -302,7 +319,7 @@ def _build_character_settings_ui():
                     Drag a valid .json file onto the upload box, or click the box to browse.
                 """)
 
-    return char_name, user_name, char_persona, char_greeting, world_scenario, example_dialogue
+    return charfile, (char_name, user_name, char_persona, char_greeting, world_scenario, example_dialogue)
 
 
 def _build_generation_settings_ui(state, fn, for_kobold):
