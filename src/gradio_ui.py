@@ -73,11 +73,10 @@ def build_gradio_ui_for(inference_fn, for_kobold):
                                             generation_settings,
                                             *char_setting_states)
 
-            # TODO(11b): Consider turning `inference_result_for_gradio` into
-            # HTML so line breaks are preserved.
             inference_result_for_gradio = inference_result \
                 .replace(f"{char_name}:", f"**{char_name}:**") \
-                .replace("<USER>", user_name)
+                .replace("<USER>", user_name) \
+                .replace("\n", "<br>") # Gradio chatbot component can display br tag as linebreak
 
             model_history.append(f"You: {user_input}")
             model_history.append(inference_result)
@@ -103,14 +102,14 @@ def build_gradio_ui_for(inference_fn, for_kobold):
         def _undo_last_exchange(model_history, gradio_history):
             '''Undoes the last exchange (message pair).'''
             return model_history[:-2], gradio_history[:-1], gradio_history[:-1]
-            
+
         def _save_chat_history(model_history, *char_setting_states):
             '''Saves the current chat history to a .json file.'''
             char_name = char_setting_states[0]
             with open(f"{char_name}_conversation.json", "w") as f:
                 f.write(json.dumps({"chat": model_history}))
             return f"{char_name}_conversation.json"
-            
+
         def _load_chat_history(file_obj, *char_setting_states):
             '''Loads up a chat history from a .json file.'''
             # #############################################################################################
@@ -125,7 +124,7 @@ def build_gradio_ui_for(inference_fn, for_kobold):
 
             char_name = char_setting_states[0]
             user_name = char_setting_states[1]
-            
+
             file_data = json.loads(file_obj.decode('utf-8'))
             model_history = file_data["chat"]
             # Construct a new gradio history
@@ -147,9 +146,9 @@ def build_gradio_ui_for(inference_fn, for_kobold):
                 # The model shouldn't generate [NAME_IN_MESSAGE_REDACTED] by itself.
                 user_turn = user_turn.replace("[NAME_IN_MESSAGE_REDACTED]", user_name)
                 bot_turn = bot_turn.replace("[NAME_IN_MESSAGE_REDACTED]", user_name)
-                
+
                 new_gradio_history.append((user_turn, bot_turn))
-                
+
             return model_history, new_gradio_history, new_gradio_history
 
         with gr.Tab("Character Settings") as settings_tab:
@@ -213,7 +212,7 @@ def build_gradio_ui_for(inference_fn, for_kobold):
                     inputs=[history_for_model, history_for_gradio],
                     outputs=[history_for_model, history_for_gradio, chatbot],
                 )
-                
+
             with gr.Row():
                 with gr.Column():
                     chatfile = gr.File(type="binary", file_types=[".json"], interactive=True)
@@ -232,11 +231,11 @@ def build_gradio_ui_for(inference_fn, for_kobold):
 
                         ### To load a chat
                         Drag a valid .json file onto the upload box, or click the box to browse.
-                        
+
                         **Remember to fill out/load up your character definitions before resuming a chat!**
                     """)
 
-                
+
 
         with gr.Tab("Generation Settings"):
             _build_generation_settings_ui(
